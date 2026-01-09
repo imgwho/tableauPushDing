@@ -31,24 +31,34 @@ const app = new Elysia()
         return db.query("SELECT id, name FROM environments").all();
     })
 
+    // Filiales (分公司)
+    .get('/filiales', () => {
+        return db.query("SELECT id, name FROM filiales ORDER BY id").all();
+    })
+
     // Users
     .get('/users', () => {
         return db.query(`
-            SELECT u.id, u.name, u.dingtalk_userid, e.name as env_name, u.environment_id 
+            SELECT 
+                u.id, u.name, u.dingtalk_userid, 
+                e.name as env_name, u.environment_id,
+                f.name as filiale_name, u.filiale_id
             FROM users u 
             JOIN environments e ON u.environment_id = e.id
+            LEFT JOIN filiales f ON u.filiale_id = f.id
         `).all();
     })
     .post('/users', ({ body }) => {
-        const { dingtalk_userid, name, environment_id } = body as any;
+        const { dingtalk_userid, name, environment_id, filiale_id } = body as any;
         try {
             db.query(`
-                INSERT INTO users (dingtalk_userid, name, environment_id)
-                VALUES ($dingtalk_userid, $name, $environment_id)
+                INSERT INTO users (dingtalk_userid, name, environment_id, filiale_id)
+                VALUES ($dingtalk_userid, $name, $environment_id, $filiale_id)
             `).run({
                 $dingtalk_userid: dingtalk_userid,
                 $name: name,
-                $environment_id: environment_id
+                $environment_id: environment_id,
+                $filiale_id: filiale_id || null
             });
             return { success: true };
         } catch (e: any) {
@@ -58,8 +68,47 @@ const app = new Elysia()
         body: t.Object({
             dingtalk_userid: t.String(),
             name: t.String(),
-            environment_id: t.Number()
+            environment_id: t.Number(),
+            filiale_id: t.Optional(t.Nullable(t.Number()))
         })
+    })
+
+    .put('/users/:id', ({ params, body }) => {
+        const { dingtalk_userid, name, environment_id, filiale_id } = body as any;
+        try {
+            db.query(`
+                UPDATE users 
+                SET dingtalk_userid = $dingtalk_userid,
+                    name = $name,
+                    environment_id = $environment_id,
+                    filiale_id = $filiale_id
+                WHERE id = $id
+            `).run({
+                $id: params.id,
+                $dingtalk_userid: dingtalk_userid,
+                $name: name,
+                $environment_id: environment_id,
+                $filiale_id: filiale_id || null
+            });
+            return { success: true };
+        } catch (e: any) {
+            return { error: e.message };
+        }
+    }, {
+        params: t.Object({
+            id: t.Numeric()
+        }),
+        body: t.Object({
+            dingtalk_userid: t.String(),
+            name: t.String(),
+            environment_id: t.Number(),
+            filiale_id: t.Optional(t.Nullable(t.Number()))
+        })
+    })
+
+    .delete('/users/:id', ({ params }) => {
+        db.query("DELETE FROM users WHERE id = $id").run({ $id: params.id });
+        return { success: true };
     })
 
     // Tableau Workbooks (Real-time fetch)

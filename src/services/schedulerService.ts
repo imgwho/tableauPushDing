@@ -94,6 +94,42 @@ async function executeTask(task: any) {
             return;
         }
 
+        // 3. Prepare Users and Groups
+        // Get full user details including filiale_id
+        let allTargetUsers: any[] = [];
+        try {
+            const localUserIds = JSON.parse(task.target_user_ids); 
+            if (Array.isArray(localUserIds) && localUserIds.length > 0) {
+                const placeholders = localUserIds.map(() => '?').join(',');
+                // Select users with their filiale_id and filiale name (for logging)
+                allTargetUsers = db.query(`
+                    SELECT u.id, u.dingtalk_userid, u.filiale_id, f.name as filiale_name 
+                    FROM users u
+                    LEFT JOIN filiales f ON u.filiale_id = f.id 
+                    WHERE u.id IN (${placeholders})
+                `).all(...localUserIds) as any[];
+            }
+        } catch (e) {
+            console.error(`[Task ${task.id}] Error parsing target_user_ids:`, e);
+            return;
+        }
+
+        if (allTargetUsers.length === 0) {
+            console.warn(`[Task ${task.id}] No valid users found.`);
+            return;
+        }
+
+        // Group users by filiale_id (null/undefined will be key "default")
+        const userGroups: Record<string, typeof allTargetUsers> = {};
+        for (const user of allTargetUsers) {
+            const key = user.filiale_id ? String(user.filiale_id) : 'default';
+            if (!userGroups[key]) userGroups[key] = [];
+            userGroups[key].push(user);
+        }
+
+        const dingToken = await dingtalkService.getAccessToken(task.app_key, task.app_secret);
+
+        // 4. Iterate over Workbooks
         for (const wb of selectedWorkbooks) {
             console.log(`[Task ${task.id}] Processing workbook: ${wb.name}`);
             
@@ -103,41 +139,38 @@ async function executeTask(task: any) {
                 continue;
             }
 
-            console.log(`[Task ${task.id}] Downloading ${views.length} views...`);
-            // Download in parallel
-            const imageBuffers = await Promise.all(views.map((v: any) => tableauService.getViewImage(v.id)));
-            
-            console.log(`[Task ${task.id}] Stitching images...`);
-            const stitchedImage = await imageService.stitchImagesVertically(imageBuffers);
+            // 5. Iterate over User Groups (Filiales)
+            for (const [groupKey, groupUsers] of Object.entries(userGroups)) {
+                const filialeId = groupKey === 'default' ? null : groupKey;
+                const filialeName = groupUsers[0].filiale_name || (filialeId ? `ID:${filialeId}` : "总部/默认");
+                
+                console.log(`[Task ${task.id}] Processing Group: ${filialeName} (${groupUsers.length} users)`);
 
-            // 3. Send to DingTalk
-            console.log(`[Task ${task.id}] Uploading to DingTalk...`);
-            const token = await dingtalkService.getAccessToken(task.app_key, task.app_secret);
-            const mediaId = await dingtalkService.uploadImage(token, stitchedImage);
+                // Download images with filter (if filialeId exists)
+                // Filter param: vf_filialeid=<id>
+                const filters = filialeId ? { filialeid: filialeId } : undefined;
 
-            // Get User DingTalk IDs
-            let userIds: string[] = [];
-            try {
-                const localUserIds = JSON.parse(task.target_user_ids); 
-                if (Array.isArray(localUserIds) && localUserIds.length > 0) {
-                    const placeholders = localUserIds.map(() => '?').join(',');
-                    const users = db.query(`SELECT dingtalk_userid FROM users WHERE id IN (${placeholders})`).all(...localUserIds) as any[];
-                    userIds = users.map(u => u.dingtalk_userid);
-                }
-            } catch (e) {
-                console.error(`[Task ${task.id}] Error parsing target_user_ids:`, e);
-            }
+                console.log(`[Task ${task.id}] Downloading ${views.length} views for [${filialeName}]...`);
+                
+                // Download in parallel for this group
+                const imageBuffers = await Promise.all(views.map((v: any) => tableauService.getViewImage(v.id, filters)));
+                
+                console.log(`[Task ${task.id}] Stitching images for [${filialeName}]...`);
+                const stitchedImage = await imageService.stitchImagesVertically(imageBuffers);
 
-            const now = new Date();
-            const pushTime = now.toLocaleString('zh-CN', { hour12: false });
-            const title = `${wb.name}`;
-            const messageText = `推送时间：${pushTime}`;
+                // Upload to DingTalk
+                const mediaId = await dingtalkService.uploadImage(dingToken, stitchedImage);
 
-            if (userIds.length > 0) {
-                console.log(`[Task ${task.id}] Sending to ${userIds.length} users...`);
-                await dingtalkService.sendWorkNotification(token, task.agent_id, userIds, mediaId, title, messageText);
-            } else {
-                console.warn(`[Task ${task.id}] No valid users found to send.`);
+                // Send to users in this group
+                const userIds = groupUsers.map(u => u.dingtalk_userid);
+                
+                const now = new Date();
+                const pushTime = now.toLocaleString('zh-CN', { hour12: false });
+                const title = `${wb.name} - ${filialeName}`; // Add filiale name to title for clarity
+                const messageText = `推送时间：${pushTime}\n范围：${filialeName}`;
+
+                console.log(`[Task ${task.id}] Sending to ${userIds.length} users in [${filialeName}]...`);
+                await dingtalkService.sendWorkNotification(dingToken, task.agent_id, userIds, mediaId, title, messageText);
             }
         }
 

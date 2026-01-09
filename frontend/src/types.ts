@@ -3,12 +3,19 @@ export interface Environment {
     name: string;
 }
 
+export interface Filiale {
+    id: number;
+    name: string;
+}
+
 export interface User {
     id: number;
     name: string;
     dingtalk_userid: string;
     env_name: string; // From join
     environment_id: number; // Actual foreign key
+    filiale_id?: number;
+    filiale_name?: string;
 }
 
 export interface Workbook {
@@ -47,4 +54,5 @@ export interface CreateUserDTO {
     dingtalk_userid: string;
     name: string;
     environment_id: number;
+    filiale_id?: number | null;
 }

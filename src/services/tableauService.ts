@@ -186,19 +186,25 @@ export class TableauService {
         });
     }
 
-    async getViewImage(viewId: string): Promise<Buffer> {
+    async getViewImage(viewId: string, filters?: Record<string, string | number>): Promise<Buffer> {
         await this.ensureAuth();
         
-        // Note: For image download, we don't easily use the generic retry wrapper 
-        // because it uses fetch, but we can wrap the fetch logic.
         const doFetch = async () => {
-            const url = `${this.baseUrl}/sites/${this.auth?.siteId}/views/${viewId}/image?maxAge=1&resolution=high`;
-            const headers = this.getHeaders();
+            let url = `${this.baseUrl}/sites/${this.auth?.siteId}/views/${viewId}/image?maxAge=1&resolution=high`;
             
-            // Fetch in Bun doesn't support httpAgent/httpsAgent like Axios does.
-            // But usually fetch handles SSL based on global context or simple ignore.
-            // If fetch fails, we might need to use axios with arraybuffer responseType.
-            // Let's stick to fetch as it worked for the user, but handle 401.
+            // Append filters (View Filters in REST API use "vf_" prefix)
+            // Example: filialeid=1632 -> vf_filialeid=1632
+            if (filters) {
+                const params = new URLSearchParams();
+                for (const [key, value] of Object.entries(filters)) {
+                    // Try adding "vf_" prefix if not present, though standard URL params might also work depending on server version.
+                    // Official REST API docs say: vf_<filter_name>=<filter_value>
+                    params.append(`vf_${key}`, String(value));
+                }
+                url += `&${params.toString()}`;
+            }
+
+            const headers = this.getHeaders();
             
             const res = await fetch(url, { headers });
             

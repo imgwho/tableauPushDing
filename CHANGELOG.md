@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-01-09 - 分公司数据隔离推送与用户管理增强
+
+### ✨ 新功能 (Features)
+*   **分公司维度推送 (Bursting)**：
+    *   实现了基于 `filialeid` 的数据隔离截图推送。
+    *   **智能分组**：任务执行时会自动按用户所属分公司分组，同一个分公司仅截一次图，提升效率。
+    *   **动态过滤**：向 Tableau 请求图片时自动追加 `vf_filialeid` 过滤参数。
+*   **用户编辑功能**：支持修改现有用户的姓名、钉钉 ID、分公司归属及所属环境。
+*   **分公司管理**：系统内置了四川、重庆、广东等 28 个分公司的数据映射。
+
+### 💻 代码变更 (Code Impact)
+*   `src/db/db.ts`: 
+    *   新增 `filiales` 表。
+    *   `users` 表新增 `filiale_id` 外键。
+    *   内置 28 个分公司的种子数据初始化逻辑。
+*   `index.ts`: 
+    *   新增 `GET /api/filiales` 接口。
+    *   新增 `PUT /api/users/:id` 和 `DELETE /api/users/:id` 接口。
+*   `src/services/tableauService.ts`: `getViewImage` 方法支持传入 `filters` 参数，生成 `vf_` 前缀的 Tableau 过滤 URL。
+*   `src/services/schedulerService.ts`: 重构 `executeTask` 核心逻辑，由“单图群发”升级为“分组过滤截图精准推送”。
+*   `frontend/src/components/UserForm.tsx`: 支持编辑模式，新增分公司下拉选择框。
+*   `frontend/src/components/UserManager.tsx`: 列表增加“分公司”列，新增“编辑”操作入口。
+
+---
+
 ## 2026-01-09 - UI/UX 深度优化与交互重构
 
 ### 🎨 UI/UX 改进 (User Experience)

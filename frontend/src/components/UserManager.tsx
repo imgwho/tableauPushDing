@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import type { User } from '../types';
 import { UserForm } from './UserForm';
-import { X, UserPlus, Users, Search, Loader2 } from 'lucide-react';
+import { X, UserPlus, Users, Search, Loader2, Pencil } from 'lucide-react';
 
 interface UserManagerProps {
     onClose: () => void;
@@ -11,6 +11,7 @@ interface UserManagerProps {
 export const UserManager: React.FC<UserManagerProps> = ({ onClose }) => {
     const [users, setUsers] = useState<User[]>([]);
     const [showAddForm, setShowAddForm] = useState(false);
+    const [editingUser, setEditingUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
 
@@ -58,7 +59,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ onClose }) => {
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        {!showAddForm && (
+                        {!showAddForm && !editingUser && (
                             <button 
                                 onClick={() => setShowAddForm(true)}
                                 className="flex items-center px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
@@ -69,10 +70,14 @@ export const UserManager: React.FC<UserManagerProps> = ({ onClose }) => {
                         )}
                     </div>
 
-                    {showAddForm && (
+                    {(showAddForm || editingUser) && (
                         <div className="mb-6">
                             <UserForm 
-                                onClose={() => setShowAddForm(false)} 
+                                initialData={editingUser || undefined}
+                                onClose={() => {
+                                    setShowAddForm(false);
+                                    setEditingUser(null);
+                                }} 
                                 onSuccess={() => {
                                     fetchUsers();
                                 }} 
@@ -87,13 +92,15 @@ export const UserManager: React.FC<UserManagerProps> = ({ onClose }) => {
                                     <th className="p-3 font-medium">姓名</th>
                                     <th className="p-3 font-medium">DingTalk ID</th>
                                     <th className="p-3 font-medium">环境</th>
+                                    <th className="p-3 font-medium">分公司</th>
+                                    <th className="p-3 font-medium text-right">操作</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y dark:divide-zinc-700">
                                 {loading ? (
-                                    <tr><td colSpan={3} className="p-4 text-center"><Loader2 className="animate-spin h-6 w-6 mx-auto" /></td></tr>
+                                    <tr><td colSpan={5} className="p-4 text-center"><Loader2 className="animate-spin h-6 w-6 mx-auto" /></td></tr>
                                 ) : filteredUsers.length === 0 ? (
-                                    <tr><td colSpan={3} className="p-4 text-center text-gray-500">无用户</td></tr>
+                                    <tr><td colSpan={5} className="p-4 text-center text-gray-500">无用户</td></tr>
                                 ) : (
                                     filteredUsers.map(user => (
                                         <tr key={user.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-700/50">
@@ -103,6 +110,24 @@ export const UserManager: React.FC<UserManagerProps> = ({ onClose }) => {
                                                 <span className="px-2 py-0.5 rounded text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
                                                     {user.env_name}
                                                 </span>
+                                            </td>
+                                            <td className="p-3">
+                                                {user.filiale_name ? (
+                                                    <span className="px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                                        {user.filiale_name}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">-</span>
+                                                )}
+                                            </td>
+                                            <td className="p-3 text-right">
+                                                <button 
+                                                    onClick={() => setEditingUser(user)}
+                                                    className="p-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition"
+                                                    title="编辑"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </button>
                                             </td>
                                         </tr>
                                     ))

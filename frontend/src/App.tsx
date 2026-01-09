@@ -85,7 +85,7 @@ function App() {
             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
                 Tableau Push Ding
             </h1>
-            <p className="text-zinc-500 mt-2">管理自动截图任务</p>
+            <p className="text-zinc-500 mt-2">管理Tableau看板截图推送钉钉任务</p>
           </div>
           <div className="flex space-x-3">
             <button 
