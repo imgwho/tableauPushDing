@@ -124,6 +124,47 @@ const app = new Elysia()
         return { success: true };
     })
 
+    .put('/tasks/:id', ({ params, body }) => {
+        const { name, cron_expression, workbook_names, target_user_ids, environment_id, enabled } = body as any;
+        try {
+            db.query(`
+                UPDATE tasks 
+                SET name = $name, 
+                    cron_expression = $cron, 
+                    workbook_names = $wbs, 
+                    target_user_ids = $users, 
+                    environment_id = $env,
+                    enabled = $enabled
+                WHERE id = $id
+            `).run({
+                $id: params.id,
+                $name: name,
+                $cron: cron_expression,
+                $wbs: JSON.stringify(workbook_names),
+                $users: JSON.stringify(target_user_ids),
+                $env: environment_id,
+                $enabled: enabled
+            });
+            
+            schedulerService.reloadAllTasks();
+            return { success: true };
+        } catch (e: any) {
+            return { error: e.message };
+        }
+    }, {
+        params: t.Object({
+            id: t.Numeric()
+        }),
+        body: t.Object({
+            name: t.String(),
+            cron_expression: t.String(),
+            workbook_names: t.Array(t.String()),
+            target_user_ids: t.Array(t.Number()),
+            environment_id: t.Number(),
+            enabled: t.Number() // 0 or 1
+        })
+    })
+
     .post('/tasks/:id/trigger', async ({ params }) => {
         try {
             await schedulerService.triggerTaskManual(Number(params.id));

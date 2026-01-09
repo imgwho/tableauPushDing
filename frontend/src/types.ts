@@ -39,6 +39,10 @@ export interface CreateTaskDTO {
     environment_id: number;
 }
 
+export interface UpdateTaskDTO extends CreateTaskDTO {
+    enabled: number;
+}
+
 export interface CreateUserDTO {
     dingtalk_userid: string;
     name: string;

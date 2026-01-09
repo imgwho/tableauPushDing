@@ -6,9 +6,11 @@ import { X, Loader2 } from 'lucide-react';
 interface TaskFormProps {
     onClose: () => void;
     onSuccess: () => void;
+    initialData?: Task;
 }
 
-export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
+export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess, initialData }) => {
+    const isEdit = !!initialData;
     const [environments, setEnvironments] = useState<Environment[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [workbooks, setWorkbooks] = useState<Workbook[]>([]);
@@ -21,13 +23,42 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
     const [selectedTime, setSelectedTime] = useState('09:00');
     const [selectedWeekDays, setSelectedWeekDays] = useState<number[]>([1, 2, 3, 4, 5]);
 
-    const [formData, setFormData] = useState<CreateTaskDTO>({
-        name: '',
-        cron_expression: '0 9 * * 1-5', 
-        workbook_names: [],
-        target_user_ids: [],
-        environment_id: 0
+    const [formData, setFormData] = useState<UpdateTaskDTO>({
+        name: initialData?.name || '',
+        cron_expression: initialData?.cron_expression || '0 9 * * 1-5', 
+        workbook_names: initialData ? JSON.parse(initialData.workbook_names) : [],
+        target_user_ids: initialData ? JSON.parse(initialData.target_user_ids) : [],
+        environment_id: initialData?.environment_id || 0,
+        enabled: initialData?.enabled ?? 1
     });
+
+    // Helper: Reverse Cron Parsing
+    const parseCron = (cron: string) => {
+        const parts = cron.split(' ');
+        if (parts.length < 5) {
+            setCronType('custom');
+            return;
+        }
+
+        const [m, h, dom, mon, dow] = parts;
+        const timeStr = `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
+        setSelectedTime(timeStr);
+
+        if (dom === '*' && mon === '*') {
+            if (dow === '*') {
+                setCronType('daily');
+            } else if (dow === '1-5') {
+                setCronType('workdays');
+            } else if (dow.includes(',') || (parseInt(dow) >= 0 && parseInt(dow) <= 6)) {
+                setCronType('weekly');
+                setSelectedWeekDays(dow.split(',').map(Number));
+            } else {
+                setCronType('custom');
+            }
+        } else {
+            setCronType('custom');
+        }
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -41,12 +72,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
                 setUsers(userRes.data);
                 if (Array.isArray(wbRes.data)) {
                     setWorkbooks(wbRes.data);
-                } else {
-                    console.error("Workbook fetch error", wbRes.data);
                 }
                 
-                if (envRes.data.length > 0) {
+                if (!isEdit && envRes.data.length > 0) {
                     setFormData(prev => ({ ...prev, environment_id: envRes.data[0].id }));
+                }
+
+                if (isEdit && initialData) {
+                    parseCron(initialData.cron_expression);
                 }
             } catch (error) {
                 console.error("Failed to load form data", error);
@@ -81,12 +114,16 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await axios.post('/api/tasks', formData);
+            if (isEdit) {
+                await axios.put(`/api/tasks/${initialData.id}`, formData);
+            } else {
+                await axios.post('/api/tasks', formData);
+            }
             onSuccess();
             onClose();
         } catch (error) {
-            console.error("Failed to create task", error);
-            alert("创建任务失败");
+            console.error("Failed to save task", error);
+            alert(isEdit ? "更新任务失败" : "创建任务失败");
         } finally {
             setLoading(false);
         }
@@ -96,6 +133,15 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
         setSelectedWeekDays(prev => 
             prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
         );
+    };
+
+    const handleEnvChange = (envId: number) => {
+        setFormData({
+            ...formData, 
+            environment_id: envId,
+            workbook_names: [], // Reset selections when env changes
+            target_user_ids: []
+        });
     };
 
     const filteredUsers = users.filter(u => {
@@ -113,20 +159,38 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center p-6 border-b border-zinc-200 dark:border-zinc-700">
-                    <h2 className="text-xl font-semibold">新建任务</h2>
+                    <h2 className="text-xl font-semibold">{isEdit ? '编辑任务' : '新建任务'}</h2>
                     <button onClick={onClose}><X /></button>
                 </div>
                 
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                    <div>
-                        <label className="block text-sm font-medium mb-1">任务名称</label>
-                        <input 
-                            type="text" 
-                            required
-                            className="w-full p-2 border rounded dark:bg-zinc-900 dark:border-zinc-700"
-                            value={formData.name}
-                            onChange={e => setFormData({...formData, name: e.target.value})}
-                        />
+                    <div className="flex justify-between items-start gap-4">
+                        <div className="flex-1">
+                            <label className="block text-sm font-medium mb-1">任务名称</label>
+                            <input 
+                                type="text" 
+                                required
+                                className="w-full p-2 border rounded dark:bg-zinc-900 dark:border-zinc-700"
+                                value={formData.name}
+                                onChange={e => setFormData({...formData, name: e.target.value})}
+                            />
+                        </div>
+                        {isEdit && (
+                            <div className="w-24">
+                                <label className="block text-sm font-medium mb-1">状态</label>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({...formData, enabled: formData.enabled ? 0 : 1})}
+                                    className={`w-full px-3 py-2 rounded text-sm font-medium transition ${
+                                        formData.enabled 
+                                            ? 'bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-300' 
+                                            : 'bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'
+                                    }`}
+                                >
+                                    {formData.enabled ? '已启用' : '已禁用'}
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div>
@@ -134,7 +198,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
                         <select 
                             className="w-full p-2 border rounded dark:bg-zinc-900 dark:border-zinc-700"
                             value={formData.environment_id}
-                            onChange={e => setFormData({...formData, environment_id: Number(e.target.value)})}
+                            onChange={e => handleEnvChange(Number(e.target.value))}
                         >
                             {environments.map(env => (
                                 <option key={env.id} value={env.id}>{env.name}</option>
