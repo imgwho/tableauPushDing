@@ -86,7 +86,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
             onClose();
         } catch (error) {
             console.error("Failed to create task", error);
-            alert("Failed to create task");
+            alert("创建任务失败");
         } finally {
             setLoading(false);
         }
@@ -130,7 +130,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">环境 (Environment)</label>
+                        <label className="block text-sm font-medium mb-1">环境</label>
                         <select 
                             className="w-full p-2 border rounded dark:bg-zinc-900 dark:border-zinc-700"
                             value={formData.environment_id}
@@ -154,10 +154,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess }) => {
                                     value={cronType}
                                     onChange={e => setCronType(e.target.value as any)}
                                 >
-                                    <option value="daily">每天 (Daily)</option>
+                                    <option value="daily">每天</option>
                                     <option value="workdays">工作日 (周一至周五)</option>
-                                    <option value="weekly">每周 (Weekly)</option>
-                                    <option value="custom">高级 (自定义 Cron)</option>
+                                    <option value="weekly">每周</option>
+                                    <option value="custom">自定义 Cron</option>
                                 </select>
                             </div>
                             

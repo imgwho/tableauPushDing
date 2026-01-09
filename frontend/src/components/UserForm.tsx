@@ -42,7 +42,7 @@ export const UserForm: React.FC<UserFormProps> = ({ onClose, onSuccess }) => {
             }
         } catch (error) {
             console.error("Failed to create user", error);
-            alert("Failed to create user");
+            alert("创建用户失败");
         } finally {
             setLoading(false);
         }
