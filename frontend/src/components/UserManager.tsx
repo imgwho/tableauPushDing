@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import type { User } from '../types';
 import { UserForm } from './UserForm';
-import { X, UserPlus, Users, Search } from 'lucide-react';
+import { X, UserPlus, Users, Search, Loader2 } from 'lucide-react';
 
 interface UserManagerProps {
     onClose: () => void;
@@ -36,7 +36,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ onClose }) => {
     );
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
             <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
                 <div className="flex justify-between items-center p-6 border-b border-zinc-200 dark:border-zinc-700">
                     <div className="flex items-center space-x-2">
@@ -75,7 +75,6 @@ export const UserManager: React.FC<UserManagerProps> = ({ onClose }) => {
                                 onClose={() => setShowAddForm(false)} 
                                 onSuccess={() => {
                                     fetchUsers();
-                                    // Keep form open? Maybe not.
                                 }} 
                             />
                         </div>
@@ -92,7 +91,7 @@ export const UserManager: React.FC<UserManagerProps> = ({ onClose }) => {
                             </thead>
                             <tbody className="divide-y dark:divide-zinc-700">
                                 {loading ? (
-                                    <tr><td colSpan={3} className="p-4 text-center">加载中...</td></tr>
+                                    <tr><td colSpan={3} className="p-4 text-center"><Loader2 className="animate-spin h-6 w-6 mx-auto" /></td></tr>
                                 ) : filteredUsers.length === 0 ? (
                                     <tr><td colSpan={3} className="p-4 text-center text-gray-500">无用户</td></tr>
                                 ) : (

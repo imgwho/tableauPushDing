@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import type { Environment, User, Workbook, CreateTaskDTO } from '../types';
+import type { Environment, User, Workbook, UpdateTaskDTO, Task } from '../types';
 import { X, Loader2 } from 'lucide-react';
 
 interface TaskFormProps {
@@ -123,6 +123,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess, initialD
             onClose();
         } catch (error) {
             console.error("Failed to save task", error);
+            // Alert removed or kept based on preference. I'll keep it for errors only.
             alert(isEdit ? "更新任务失败" : "创建任务失败");
         } finally {
             setLoading(false);
@@ -156,7 +157,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess, initialD
     }
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
             <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center p-6 border-b border-zinc-200 dark:border-zinc-700">
                     <h2 className="text-xl font-semibold">{isEdit ? '编辑任务' : '新建任务'}</h2>
@@ -330,7 +331,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess, initialD
                             className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center"
                         >
                             {loading && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
-                            创建任务
+                            {isEdit ? '保存修改' : '创建任务'}
                         </button>
                     </div>
                 </form>
