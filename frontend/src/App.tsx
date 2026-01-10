@@ -7,11 +7,16 @@ import { UserManager } from './components/UserManager';
 import { ToastContainer } from './components/Toast';
 import type { ToastMessage } from './components/Toast';
 import { ConfirmModal } from './components/ConfirmModal';
-import { Trash2, Play, Plus, Clock, Users, FileBarChart, Loader2, Eye, Pencil, Server } from 'lucide-react';
+import { LoginForm } from './components/LoginForm';
+import { Trash2, Play, Plus, Clock, Users, FileBarChart, Loader2, Eye, Pencil, Server, LogOut } from 'lucide-react';
 import { formatCron } from './utils/cronHelper';
 import { getEnvColor } from './utils/styleHelper';
 
 function App() {
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -24,6 +29,19 @@ function App() {
   
   const [triggering, setTriggering] = useState<number | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  useEffect(() => {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+          setIsAuthenticated(true);
+      }
+      setAuthChecking(false);
+  }, []);
+
+  const handleLogout = () => {
+      localStorage.removeItem('auth_token');
+      setIsAuthenticated(false);
+  };
 
   const addToast = (type: 'success' | 'error', message: string) => {
       const id = Date.now();
@@ -48,8 +66,10 @@ function App() {
   };
 
   useEffect(() => {
-    fetchTasks();
-  }, []);
+    if (isAuthenticated) {
+        fetchTasks();
+    }
+  }, [isAuthenticated]);
 
   const handleDelete = async (id: number) => {
     try {
@@ -77,6 +97,12 @@ function App() {
     }
   };
 
+  if (authChecking) return null; // Or a spinner
+
+  if (!isAuthenticated) {
+      return <LoginForm onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 p-8 font-sans">
       <div className="max-w-6xl mx-auto">
@@ -85,7 +111,7 @@ function App() {
             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
                 Tableau Push Ding
             </h1>
-            <p className="text-zinc-500 mt-2">管理Tableau看板截图推送钉钉任务</p>
+            <p className="text-zinc-500 mt-2">管理自动截图任务</p>
           </div>
           <div className="flex space-x-3">
             <button 
@@ -101,6 +127,13 @@ function App() {
             >
                 <Plus className="mr-2 h-5 w-5" />
                 新建任务
+            </button>
+            <button 
+                onClick={handleLogout}
+                className="flex items-center px-3 py-2 text-zinc-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
+                title="退出登录"
+            >
+                <LogOut className="h-5 w-5" />
             </button>
           </div>
         </header>

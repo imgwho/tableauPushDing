@@ -27,6 +27,15 @@ export function initDb() {
     );
   `);
 
+  // Admins table (System Administrators)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS admins (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL -- Hashed password
+    );
+  `);
+
   // Users table
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
@@ -65,8 +74,21 @@ export function initDb() {
   `);
 
   seedFiliales();
+  seedAdmin();
   
   console.log("Database initialized.");
+}
+
+async function seedAdmin() {
+    const adminExists = db.query("SELECT id FROM admins WHERE username = 'admin'").get();
+    if (!adminExists) {
+        const hashedPassword = await Bun.password.hash("admin123");
+        db.query("INSERT INTO admins (username, password) VALUES ($username, $password)").run({
+            $username: "admin",
+            $password: hashedPassword
+        });
+        console.log("Seeded default admin user.");
+    }
 }
 
 function seedFiliales() {

@@ -26,6 +26,28 @@ const app = new Elysia()
   
   // --- API Routes ---
   .group('/api', app => app
+    // Login
+    .post('/login', async ({ body }) => {
+        const { username, password } = body as any;
+        const user = db.query("SELECT * FROM admins WHERE username = $username").get({ $username: username }) as any;
+        
+        if (!user) {
+            return { error: "Invalid username or password" };
+        }
+
+        const isMatch = await Bun.password.verify(password, user.password);
+        if (!isMatch) {
+            return { error: "Invalid username or password" };
+        }
+
+        return { success: true, username: user.username };
+    }, {
+        body: t.Object({
+            username: t.String(),
+            password: t.String()
+        })
+    })
+
     // Environments
     .get('/environments', () => {
         return db.query("SELECT id, name FROM environments").all();
