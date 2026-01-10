@@ -150,11 +150,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess, initialD
         return selectedEnv ? u.env_name === selectedEnv.name : true;
     });
 
-    const weekDayLabels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    const [workbookSearch, setWorkbookSearch] = useState('');
 
-    if (dataLoading) {
-        return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
-    }
+    const filteredWorkbooks = workbooks.filter(wb => 
+        wb.name.toLowerCase().includes(workbookSearch.toLowerCase()) || 
+        (wb.projectName || wb.projectId).toLowerCase().includes(workbookSearch.toLowerCase())
+    );
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
@@ -280,28 +281,84 @@ export const TaskForm: React.FC<TaskFormProps> = ({ onClose, onSuccess, initialD
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">选择工作簿 (可多选)</label>
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="block text-sm font-medium">选择工作簿 (可多选)</label>
+                            <div className="flex items-center space-x-4">
+                                <input 
+                                    type="text"
+                                    placeholder="搜索工作簿..."
+                                    className="text-xs p-1 border rounded dark:bg-zinc-900 dark:border-zinc-700"
+                                    value={workbookSearch}
+                                    onChange={e => setWorkbookSearch(e.target.value)}
+                                />
+                                {filteredWorkbooks.length > 0 && (
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id="selectAllWorkbooks"
+                                            checked={filteredWorkbooks.length > 0 && filteredWorkbooks.every(wb => formData.workbook_names.includes(wb.name))}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    const allNames = new Set([...formData.workbook_names, ...filteredWorkbooks.map(wb => wb.name)]);
+                                                    setFormData(prev => ({ ...prev, workbook_names: Array.from(allNames) }));
+                                                } else {
+                                                    const filteredNames = filteredWorkbooks.map(wb => wb.name);
+                                                    setFormData(prev => ({ 
+                                                        ...prev, 
+                                                        workbook_names: prev.workbook_names.filter(name => !filteredNames.includes(name)) 
+                                                    }));
+                                                }
+                                            }}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <label htmlFor="selectAllWorkbooks" className="text-xs text-gray-500 cursor-pointer select-none">全选</label>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                         <div className="h-40 overflow-y-auto border rounded p-2 dark:bg-zinc-900 dark:border-zinc-700">
-                            {workbooks.map(wb => (
-                                <div key={wb.id} className="flex items-center space-x-2 mb-1">
-                                    <input 
-                                        type="checkbox"
-                                        checked={formData.workbook_names.includes(wb.name)}
-                                        onChange={e => {
-                                            const newNames = e.target.checked 
-                                                ? [...formData.workbook_names, wb.name]
-                                                : formData.workbook_names.filter(n => n !== wb.name);
-                                            setFormData({...formData, workbook_names: newNames});
-                                        }}
-                                    />
-                                    <span>{wb.name} <span className="text-xs text-gray-500">({wb.projectName || wb.projectId})</span></span>
-                                </div>
-                            ))}
+                            {filteredWorkbooks.length === 0 ? <div className="text-gray-500 text-sm">未找到匹配的工作簿</div> : 
+                                filteredWorkbooks.map(wb => (
+                                    <div key={wb.id} className="flex items-center space-x-2 mb-1">
+                                        <input 
+                                            type="checkbox"
+                                            checked={formData.workbook_names.includes(wb.name)}
+                                            onChange={e => {
+                                                const newNames = e.target.checked 
+                                                    ? [...formData.workbook_names, wb.name]
+                                                    : formData.workbook_names.filter(n => n !== wb.name);
+                                                setFormData({...formData, workbook_names: newNames});
+                                            }}
+                                        />
+                                        <span className="text-sm">{wb.name} <span className="text-xs text-gray-500">({wb.projectName || wb.projectId})</span></span>
+                                    </div>
+                                ))
+                            }
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">接收用户 (当前环境)</label>
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="block text-sm font-medium">接收用户 (当前环境)</label>
+                            {filteredUsers.length > 0 && (
+                                <div className="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        id="selectAllUsers"
+                                        checked={filteredUsers.every(u => formData.target_user_ids.includes(u.id))}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setFormData(prev => ({ ...prev, target_user_ids: filteredUsers.map(u => u.id) }));
+                                            } else {
+                                                setFormData(prev => ({ ...prev, target_user_ids: [] }));
+                                            }
+                                        }}
+                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <label htmlFor="selectAllUsers" className="text-xs text-gray-500 cursor-pointer select-none">全选</label>
+                                </div>
+                            )}
+                        </div>
                         <div className="h-40 overflow-y-auto border rounded p-2 dark:bg-zinc-900 dark:border-zinc-700">
                             {filteredUsers.length === 0 ? <div className="text-gray-500">该环境下无用户</div> : 
                                 filteredUsers.map(u => (
