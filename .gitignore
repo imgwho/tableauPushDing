@@ -21,6 +21,8 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 .env
 .env.*
 userlist.env
+!.env.example
+!userlist.example.env
 
 # caches
 .eslintcache

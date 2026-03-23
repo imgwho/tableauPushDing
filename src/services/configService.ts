@@ -1,8 +1,18 @@
+import fs from "node:fs";
 import db from "../db/db";
-import { parseUserListEnv, type EnvironmentConfig } from "../utils/envParser";
+import { parseUserListEnv } from "../utils/envParser";
 
-export function syncConfigToDb() {
-  const envs = parseUserListEnv("userlist.env");
+export function syncConfigToDb(filePath = process.env.USERLIST_ENV_PATH || "userlist.env") {
+  if (!fs.existsSync(filePath)) {
+    console.warn(`Config file "${filePath}" not found. Skipping environment sync.`);
+    return;
+  }
+
+  const envs = parseUserListEnv(filePath);
+  if (envs.length === 0) {
+    console.warn(`No valid environments found in "${filePath}". Skipping environment sync.`);
+    return;
+  }
   
   const insertEnvStmt = db.prepare(`
     INSERT INTO environments (name, app_key, app_secret, agent_id)

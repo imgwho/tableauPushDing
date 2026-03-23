@@ -74,21 +74,40 @@ export function initDb() {
   `);
 
   seedFiliales();
-  seedAdmin();
+  void seedAdmin().catch((error) => {
+    console.error("Failed to configure admin user:", error);
+  });
   
   console.log("Database initialized.");
 }
 
 async function seedAdmin() {
-    const adminExists = db.query("SELECT id FROM admins WHERE username = 'admin'").get();
-    if (!adminExists) {
-        const hashedPassword = await Bun.password.hash("admin123");
-        db.query("INSERT INTO admins (username, password) VALUES ($username, $password)").run({
-            $username: "admin",
-            $password: hashedPassword
-        });
-        console.log("Seeded default admin user.");
+    const username = process.env.ADMIN_USERNAME?.trim();
+    const password = process.env.ADMIN_PASSWORD;
+    const passwordHashFromEnv = process.env.ADMIN_PASSWORD_HASH?.trim();
+
+    if (!username) {
+        console.warn("ADMIN_USERNAME is not set. Skipping admin bootstrap.");
+        return;
     }
+
+    if (!password && !passwordHashFromEnv) {
+        console.warn("Set ADMIN_PASSWORD or ADMIN_PASSWORD_HASH to bootstrap admin login.");
+        return;
+    }
+
+    const passwordHash = passwordHashFromEnv || await Bun.password.hash(password!);
+
+    db.query(`
+      INSERT INTO admins (username, password)
+      VALUES ($username, $password)
+      ON CONFLICT(username) DO UPDATE SET password = excluded.password
+    `).run({
+      $username: username,
+      $password: passwordHash
+    });
+
+    console.log(`Admin user "${username}" configured from environment.`);
 }
 
 function seedFiliales() {

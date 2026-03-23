@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import fs from "node:fs";
 
 export interface DingTalkUser {
   name: string;
@@ -14,7 +14,7 @@ export interface EnvironmentConfig {
 }
 
 export function parseUserListEnv(filePath: string): EnvironmentConfig[] {
-  const content = fs.readFileSync(filePath, 'utf-8');
+  const content = fs.readFileSync(filePath, "utf-8");
   const lines = content.split(/\r?\n/);
 
   const environments: EnvironmentConfig[] = [];
@@ -24,13 +24,20 @@ export function parseUserListEnv(filePath: string): EnvironmentConfig[] {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    // Detect Environment Header (e.g., "# 1、测试环境")
-    const envMatch = trimmed.match(/^#\s*\d+、(.+)/);
+    // Environment header formats:
+    // - # ENV: Production
+    // - # ENVIRONMENT: Test
+    // - # 1. Test
+    // - # 1) Test
+    const envMatch =
+      trimmed.match(/^#\s*(?:ENV|ENVIRONMENT)\s*[:=]\s*(.+)$/i) ||
+      trimmed.match(/^#\s*\d+\s*[\W_]*\s*(.+)$/);
+
     if (envMatch) {
-      if (currentEnv && currentEnv.name) {
-        // Push previous env if complete (validation logic can be added)
-         environments.push(currentEnv as EnvironmentConfig);
+      if (currentEnv?.name) {
+        environments.push(currentEnv as EnvironmentConfig);
       }
+
       currentEnv = {
         name: envMatch[1].trim(),
         users: []
@@ -38,41 +45,41 @@ export function parseUserListEnv(filePath: string): EnvironmentConfig[] {
       continue;
     }
 
-    if (!currentEnv) continue;
+    // Ignore non-header comment lines.
+    if (trimmed.startsWith("#")) continue;
 
-    // Key-Value pairs
-    if (trimmed.includes('=')) {
-      const [key, ...valueParts] = trimmed.split('=');
-      const value = valueParts.join('=').trim();
-      
-      // Ignore comments in value if any? (Assuming simple format)
-      
-      switch (key.trim()) {
-        case 'DINGTALK_APP_KEY':
-          currentEnv.appKey = value;
-          break;
-        case 'DINGTALK_APP_SECRET':
-          currentEnv.appSecret = value;
-          break;
-        case 'DINGTALK_AGENT_ID':
-          currentEnv.agentId = value;
-          break;
-        case 'DINGTALK_USER_ID':
-          // Format: 姓名:UserID,姓名:UserID
-          currentEnv.users = value.split(',').map(pair => {
-            const [name, userid] = pair.split(':');
-            if (name && userid) {
-              return { name: name.trim(), userid: userid.trim() };
-            }
-            return null;
-          }).filter(u => u !== null) as DingTalkUser[];
-          break;
-      }
+    if (!currentEnv) continue;
+    if (!trimmed.includes("=")) continue;
+
+    const [key, ...valueParts] = trimmed.split("=");
+    const value = valueParts.join("=").trim();
+
+    switch (key.trim()) {
+      case "DINGTALK_APP_KEY":
+        currentEnv.appKey = value;
+        break;
+      case "DINGTALK_APP_SECRET":
+        currentEnv.appSecret = value;
+        break;
+      case "DINGTALK_AGENT_ID":
+        currentEnv.agentId = value;
+        break;
+      case "DINGTALK_USER_ID":
+        currentEnv.users = value
+          .split(",")
+          .map((pair) => {
+            const [name, userid] = pair.split(":");
+            if (!name || !userid) return null;
+            return { name: name.trim(), userid: userid.trim() };
+          })
+          .filter((u): u is DingTalkUser => u !== null);
+        break;
+      default:
+        break;
     }
   }
 
-  // Push the last one
-  if (currentEnv && currentEnv.name) {
+  if (currentEnv?.name) {
     environments.push(currentEnv as EnvironmentConfig);
   }
 
