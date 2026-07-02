@@ -292,63 +292,197 @@ DINGTALK_USER_ID=Carol:carol_userid,David:david_userid
 | Public access | Put the app behind HTTPS and a reverse proxy |
 | Scheduling | Croner uses overlap protection for scheduled jobs |
 
-## 中文速览
+## 中文说明
 
-**Tableau Push Ding 是一个把 Tableau 看板自动推送到钉钉的报表分发系统。**
+**通过可视化管理后台，把 Tableau 截图报表自动推送到钉钉。**
 
-它适合演示成一句话：运营人员在网页里配置任务，系统定时截图 Tableau 看板，自动拼成长图，然后推送到指定钉钉用户。
+Tableau Push Ding 可以把 Tableau 看板变成定时钉钉工作通知。运营人员在网页里选择工作簿、接收人、环境和推送时间；后端负责截图 Tableau 视图、拼接成长图，并通过钉钉发送给目标用户。
 
-## 演示重点
+## 演示故事
 
-| 你展示什么 | 观众看到什么 | 价值 |
-| --- | --- | --- |
-| 任务列表 | 哪些报表在自动推送 | 报表分发变成可管理的系统 |
-| 新建任务 | 选择工作簿、用户、环境、时间 | 不写代码也能配置推送 |
-| 用户管理 | 用户绑定环境和分公司 | 不同团队收到不同数据 |
-| 手动触发 | 立即运行一次任务 | 临时汇报也能快速推送 |
-| 钉钉消息 | 一张可读的长图报表 | 结果直接到业务人员手里 |
-
-## 前端目录速览
-
-| 文件 / 目录 | 作用 |
+| 之前 | 现在 |
 | --- | --- |
-| `frontend/src/App.tsx` | 管理后台主界面，承载登录状态、任务列表、弹窗和操作入口 |
-| `frontend/src/components/TaskForm.tsx` | 新建/编辑任务，包含工作簿选择、用户选择和定时规则配置 |
-| `frontend/src/components/TaskDetail.tsx` | 查看单个任务详情 |
-| `frontend/src/components/UserManager.tsx` | 用户列表、搜索、新增和编辑入口 |
-| `frontend/src/components/UserForm.tsx` | 新增/编辑钉钉接收人 |
-| `frontend/src/components/LoginForm.tsx` | 管理员登录表单 |
-| `frontend/src/components/ConfirmModal.tsx` | 删除等危险操作确认弹窗 |
-| `frontend/src/components/Toast.tsx` | 成功/失败提示 |
-| `frontend/src/utils/cronHelper.ts` | 把 cron 表达式转成更容易读的时间说明 |
-| `frontend/src/utils/styleHelper.ts` | 环境标签颜色等展示辅助逻辑 |
-| `frontend/src/types.ts` | 前端共享类型定义 |
+| 每天手动打开 Tableau | 在管理后台配置一次定时任务 |
+| 手动导出看板截图 | 后端自动抓取高清 Tableau 视图 |
+| 多页报表需要人工拼图 | `sharp` 自动拼接成一张 PNG 长图 |
+| 不同群体需要手动分别发送 | 钉钉工作通知自动发送给目标用户 |
+| 测试和正式用户容易混淆 | 环境和接收人分开存入 SQLite 管理 |
 
-## 中文流程图
+## 产品流程
 
 ```mermaid
 flowchart LR
   A["选择 Tableau 工作簿"] --> B["选择接收人"]
   B --> C["设置推送时间"]
-  C --> D["自动截图"]
-  D --> E["拼接长图"]
+  C --> D["抓取看板截图"]
+  D --> E["拼接长图报表"]
   E --> F["推送到钉钉"]
 ```
 
-## 中文架构图
+## 演示时可以展示什么
+
+| 页面 / 场景 | 讲解重点 | 卖点 |
+| --- | --- | --- |
+| 登录页 | 简单的管理员入口 | 非技术人员也能使用 |
+| 任务列表 | 已有计划、启用状态、手动运行 | 报表推送变成可管理的运营流程 |
+| 新建任务 | 工作簿选择、接收人选择、定时规则 | 业务人员不用写代码也能配置 |
+| 用户管理 | 环境和分公司绑定 | 不同团队收到对应报表 |
+| 钉钉消息 | 聊天里收到一张长图报表 | 结果直接到业务人员工作的地方 |
+
+## 核心能力
+
+| 能力 | 实现方式 | 价值 |
+| --- | --- | --- |
+| 可视化管理后台 | React + Vite 前端调用 `/api` | 更容易管理任务和用户 |
+| Tableau 工作簿发现 | 后端通过 Tableau REST API 拉取工作簿 | 避免手动填写工作簿名出错 |
+| 定时推送 | Croner 从 SQLite 加载启用任务 | 每天或每周自动发送报表 |
+| 高清截图 | 下载 Tableau 视图图片 | 适合在移动端阅读 |
+| 多视图拼接 | `sharp` 垂直合并 PNG buffer | 形成一张可分享的长图 |
+| 钉钉工作通知 | 上传媒体并发送企业消息 | 报表直接进入钉钉 |
+| 环境隔离 | `userlist.env` 同步测试/正式凭证 | 测试和生产推送更安全 |
+| 分公司过滤 | 添加 `vf_filialeid=1009` 等 Tableau 过滤参数 | 用户可收到分公司维度数据 |
+
+## 系统架构
 
 ```mermaid
 flowchart TB
-  Frontend["React + Vite 管理后台"] --> API["Bun + Elysia 后端 API"]
-  API --> DB[("SQLite")]
-  API --> Scheduler["Croner 定时任务"]
-  Scheduler --> Tableau["Tableau Server"]
-  Scheduler --> Sharp["sharp 图片拼接"]
-  Scheduler --> DingTalk["钉钉企业应用"]
-  DingTalk --> Users["目标用户"]
+  subgraph UI["前端"]
+    Admin["管理员 / 运营人员"] --> Web["React + Vite 管理后台"]
+  end
+
+  subgraph App["后端"]
+    API["Bun + Elysia API"]
+    Scheduler["Croner 定时任务"]
+    TableauSvc["Tableau 服务"]
+    ImageSvc["图片服务 (sharp)"]
+    DingSvc["钉钉服务"]
+  end
+
+  subgraph Data["本地数据"]
+    DB[("SQLite")]
+    Config[".env + userlist.env"]
+  end
+
+  subgraph External["外部平台"]
+    Tableau["Tableau Server REST API"]
+    DingTalk["钉钉企业应用 API"]
+    Users["钉钉用户"]
+  end
+
+  Web -->|/api| API
+  API --> DB
+  API --> Config
+  API --> Scheduler
+  Scheduler --> TableauSvc
+  TableauSvc --> Tableau
+  Scheduler --> ImageSvc
+  Scheduler --> DingSvc
+  DingSvc --> DingTalk
+  DingTalk --> Users
 ```
 
-## 中文快速启动
+## 技术栈
+
+| 层级 | 技术 |
+| --- | --- |
+| 前端 | React, Vite, TypeScript, Tailwind CSS, lucide-react |
+| 后端 | Bun, Elysia, TypeScript |
+| 数据库 | SQLite via `bun:sqlite` |
+| 定时任务 | Croner |
+| Tableau 集成 | Tableau REST API, `fast-xml-parser` |
+| 钉钉集成 | Access token, 媒体上传, 企业工作通知 API |
+| 图片处理 | sharp |
+| 部署辅助 | `start.sh`, `start.ps1`, `ecosystem.config.cjs` |
+
+## 运行流程
+
+```mermaid
+sequenceDiagram
+  participant Admin as 管理后台
+  participant API as Elysia API
+  participant DB as SQLite
+  participant Cron as 定时调度
+  participant T as Tableau
+  participant Img as sharp
+  participant D as 钉钉
+
+  Admin->>API: 创建或更新任务
+  API->>DB: 保存任务、用户、环境
+  API->>Cron: 重新加载启用计划
+  Cron->>T: 登录并下载视图图片
+  Cron->>Img: 垂直拼接图片
+  Cron->>D: 上传图片并发送通知
+```
+
+## 项目结构
+
+```text
+.
+|- index.ts                         # 后端入口和 API 路由
+|- src/
+|  |- db/
+|  |  '- db.ts                      # SQLite 表结构、迁移、初始化数据
+|  |- services/
+|  |  |- configService.ts           # 从 userlist.env 同步钉钉环境和用户
+|  |  |- dingtalkService.ts         # 钉钉 token、上传媒体、工作通知
+|  |  |- imageService.ts            # 使用 sharp 拼接截图
+|  |  |- schedulerService.ts        # 定时任务加载、重载、手动触发、执行
+|  |  '- tableauService.ts          # Tableau 登录、工作簿/视图查询、截图下载
+|  '- utils/
+|     '- envParser.ts               # userlist.env 分段解析器
+|- frontend/
+|  |- index.html                    # Vite HTML 入口
+|  |- package.json                  # 前端脚本和依赖
+|  |- vite.config.ts                # Vite 配置和 /api 代理
+|  |- eslint.config.js              # 前端 lint 配置
+|  |- tsconfig.json                 # TypeScript 项目配置
+|  |- tsconfig.app.json             # 应用 TypeScript 配置
+|  |- tsconfig.node.json            # Node/Vite TypeScript 配置
+|  |- public/
+|  |  '- vite.svg                   # 静态资源示例
+|  '- src/
+|     |- main.tsx                   # React 启动入口
+|     |- App.tsx                    # 管理后台主界面和任务列表
+|     |- App.css                    # 应用级样式
+|     |- index.css                  # 全局样式和 Tailwind 入口
+|     |- types.ts                   # 前端共享 DTO/type
+|     |- assets/
+|     |  '- react.svg               # Vite 示例资源
+|     |- components/
+|     |  |- ConfirmModal.tsx        # 危险操作确认弹窗
+|     |  |- LoginForm.tsx           # 管理员登录表单
+|     |  |- TaskDetail.tsx          # 任务详情弹窗
+|     |  |- TaskForm.tsx            # 新建/编辑任务表单和 cron 构建器
+|     |  |- Toast.tsx               # 成功/失败提示
+|     |  |- UserForm.tsx            # 新建/编辑钉钉接收人表单
+|     |  '- UserManager.tsx         # 接收人搜索、列表、新增/编辑界面
+|     '- utils/
+|        |- cronHelper.ts           # cron 可读化展示
+|        '- styleHelper.ts          # 环境标签颜色辅助
+|- .env.example                     # 可提交的 Tableau/admin 配置模板
+|- userlist.example.env             # 可提交的钉钉环境/用户模板
+|- CHANGELOG.md                     # 项目演进记录
+|- LICENSE                          # AGPL-3.0-only 许可证文本
+|- start.sh                         # Linux/macOS 启动脚本
+|- start.ps1                        # Windows PowerShell 启动脚本
+'- ecosystem.config.cjs             # PM2 配置
+```
+
+`node_modules/`、`frontend/dist/`、日志、`.env`、`userlist.env` 和 SQLite 数据库文件属于生成文件或私有文件，不放入目录说明。
+
+## 仓库补充文件
+
+| 文件 | 作用 |
+| --- | --- |
+| `.env.example` | 展示必需的 Tableau/admin 环境变量，不暴露密钥 |
+| `userlist.example.env` | 说明钉钉多环境用户映射格式 |
+| `start.sh` | Linux/macOS VPS 一键启动 |
+| `start.ps1` | Windows 开发环境一键启动 |
+| `ecosystem.config.cjs` | PM2 前后端进程配置 |
+| `CHANGELOG.md` | 给评审和演示看的项目历史 |
+| `LICENSE` | AGPL-3.0-only 开源许可证 |
+
+## 快速启动
 
 ```bash
 bun install
@@ -358,10 +492,91 @@ cp userlist.example.env userlist.env
 ./start.sh
 ```
 
-| 地址 | 用途 |
+默认地址：
+
+| 服务 | 地址 |
 | --- | --- |
-| `http://<server-ip>:5173` | 前端管理台 |
-| `http://<server-ip>:3000` | 后端 API |
+| 前端 | `http://<server-ip>:5173` |
+| 后端 | `http://<server-ip>:3000` |
+
+Windows：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start.ps1
+```
+
+PM2：
+
+```bash
+pm2 start ecosystem.config.cjs
+pm2 logs
+```
+
+## 配置说明
+
+### `.env`
+
+```env
+TABLEAU_SERVER_URL=https://your-tableau-server
+TABLEAU_SITE_ID=your-site-content-url
+TABLEAU_TOKEN_NAME=your-personal-access-token-name
+TABLEAU_TOKEN_VALUE=your-personal-access-token-secret
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=change-me
+USERLIST_ENV_PATH=userlist.env
+```
+
+### `userlist.env`
+
+```env
+# 1. Test
+DINGTALK_APP_KEY=your_test_app_key
+DINGTALK_APP_SECRET=your_test_app_secret
+DINGTALK_AGENT_ID=123456
+DINGTALK_USER_ID=Alice:alice_userid,Bob:bob_userid
+
+# 2. Production
+DINGTALK_APP_KEY=your_prod_app_key
+DINGTALK_APP_SECRET=your_prod_app_secret
+DINGTALK_AGENT_ID=654321
+DINGTALK_USER_ID=Carol:carol_userid,David:david_userid
+```
+
+## 主要 API
+
+| 方法 | 接口 | 作用 |
+| --- | --- | --- |
+| `POST` | `/api/login` | 管理员登录 |
+| `GET` | `/api/environments` | 获取钉钉环境 |
+| `GET` | `/api/filiales` | 获取分公司/业务单元 |
+| `GET` | `/api/users` | 获取接收人 |
+| `POST` | `/api/users` | 创建接收人 |
+| `PUT` | `/api/users/:id` | 更新接收人 |
+| `GET` | `/api/workbooks` | 获取 Tableau 工作簿 |
+| `GET` | `/api/tasks` | 获取报表任务 |
+| `POST` | `/api/tasks` | 创建报表任务 |
+| `PUT` | `/api/tasks/:id` | 更新报表任务 |
+| `POST` | `/api/tasks/:id/trigger` | 立即运行任务 |
+
+## 数据模型
+
+| 表 | 存储内容 |
+| --- | --- |
+| `admins` | 管理员账号和哈希密码 |
+| `environments` | 钉钉应用凭证 |
+| `filiales` | 分公司/业务单元 |
+| `users` | 钉钉接收人及环境/分公司映射 |
+| `tasks` | 工作簿选择、接收人 ID、cron 规则、启用状态 |
+
+## 生产提示
+
+| 主题 | 建议 |
+| --- | --- |
+| 密钥 | 不要提交 `.env`、`userlist.env`、SQLite 文件或日志 |
+| 管理员账号 | 生产使用前替换默认密码 |
+| 网络 | 确保服务器能访问 Tableau Server 和钉钉 OpenAPI |
+| 公网访问 | 建议使用 HTTPS 和反向代理 |
+| 定时任务 | Croner 对计划任务启用重叠保护 |
 
 ## 许可证
 
