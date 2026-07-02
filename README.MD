@@ -132,18 +132,69 @@ sequenceDiagram
 
 ```text
 .
-|- index.ts                      # Backend entry and API routes
+|- index.ts                         # Backend entry and API routes
 |- src/
-|  |- db/db.ts                   # SQLite schema and seed data
-|  |- services/                  # Tableau, DingTalk, image, scheduler, config services
-|  '- utils/envParser.ts         # userlist.env parser
-|- frontend/                     # React + Vite admin console
-|- .env.example                  # Safe Tableau config template
-|- userlist.example.env          # Safe DingTalk mapping template
-|- start.sh                      # Linux/macOS startup script
-|- start.ps1                     # Windows PowerShell startup script
-'- ecosystem.config.cjs          # PM2 config
+|  |- db/
+|  |  '- db.ts                      # SQLite schema, migrations, seed data
+|  |- services/
+|  |  |- configService.ts           # Sync DingTalk environments/users from userlist.env
+|  |  |- dingtalkService.ts         # DingTalk token, media upload, work notifications
+|  |  |- imageService.ts            # Screenshot stitching with sharp
+|  |  |- schedulerService.ts        # Cron loading, reload, manual trigger, execution
+|  |  '- tableauService.ts          # Tableau auth, workbook/view lookup, image download
+|  '- utils/
+|     '- envParser.ts               # Custom parser for userlist.env sections
+|- frontend/
+|  |- index.html                    # Vite HTML entry
+|  |- package.json                  # Frontend scripts and dependencies
+|  |- vite.config.ts                # Vite config and /api proxy
+|  |- eslint.config.js              # Frontend lint config
+|  |- tsconfig.json                 # TypeScript project config
+|  |- tsconfig.app.json             # App TypeScript config
+|  |- tsconfig.node.json            # Node/Vite TypeScript config
+|  |- public/
+|  |  '- vite.svg                   # Static public asset
+|  '- src/
+|     |- main.tsx                   # React bootstrap
+|     |- App.tsx                    # Admin console shell and main task list
+|     |- App.css                    # App-level styles
+|     |- index.css                  # Global styles and Tailwind entry
+|     |- types.ts                   # Shared frontend DTO/types
+|     |- assets/
+|     |  '- react.svg               # Vite sample asset
+|     |- components/
+|     |  |- ConfirmModal.tsx        # Destructive action confirmation dialog
+|     |  |- LoginForm.tsx           # Admin login form
+|     |  |- TaskDetail.tsx          # Task detail modal
+|     |  |- TaskForm.tsx            # Create/edit task form and cron builder
+|     |  |- Toast.tsx               # Success/error toast notifications
+|     |  |- UserForm.tsx            # Create/edit DingTalk recipient form
+|     |  '- UserManager.tsx         # Recipient search, list, add/edit UI
+|     '- utils/
+|        |- cronHelper.ts           # Human-readable cron formatting
+|        '- styleHelper.ts          # Environment badge/color helpers
+|- .env.example                     # Safe Tableau/admin config template
+|- userlist.example.env             # Safe DingTalk environment/user template
+|- CHANGELOG.md                     # Project evolution notes
+|- LICENSE                          # AGPL-3.0-only license text
+|- start.sh                         # Linux/macOS startup script
+|- start.ps1                        # Windows PowerShell startup script
+'- ecosystem.config.cjs             # PM2 config
 ```
+
+Generated folders such as `node_modules/`, `frontend/dist/`, logs, `.env`, `userlist.env`, and SQLite database files are intentionally excluded from this map.
+
+## Repository Extras
+
+| File | Why it matters |
+| --- | --- |
+| `.env.example` | Shows the required Tableau/admin environment variables without exposing secrets |
+| `userlist.example.env` | Documents the DingTalk multi-environment user mapping format |
+| `start.sh` | One-command startup for Linux/macOS VPS usage |
+| `start.ps1` | One-command startup for Windows development |
+| `ecosystem.config.cjs` | PM2 process definition for backend and frontend |
+| `CHANGELOG.md` | Short project history for reviewers and demo context |
+| `LICENSE` | AGPL-3.0-only license for open-source publication |
 
 ## Quick Start
 
@@ -256,6 +307,22 @@ DINGTALK_USER_ID=Carol:carol_userid,David:david_userid
 | 用户管理 | 用户绑定环境和分公司 | 不同团队收到不同数据 |
 | 手动触发 | 立即运行一次任务 | 临时汇报也能快速推送 |
 | 钉钉消息 | 一张可读的长图报表 | 结果直接到业务人员手里 |
+
+## 前端目录速览
+
+| 文件 / 目录 | 作用 |
+| --- | --- |
+| `frontend/src/App.tsx` | 管理后台主界面，承载登录状态、任务列表、弹窗和操作入口 |
+| `frontend/src/components/TaskForm.tsx` | 新建/编辑任务，包含工作簿选择、用户选择和定时规则配置 |
+| `frontend/src/components/TaskDetail.tsx` | 查看单个任务详情 |
+| `frontend/src/components/UserManager.tsx` | 用户列表、搜索、新增和编辑入口 |
+| `frontend/src/components/UserForm.tsx` | 新增/编辑钉钉接收人 |
+| `frontend/src/components/LoginForm.tsx` | 管理员登录表单 |
+| `frontend/src/components/ConfirmModal.tsx` | 删除等危险操作确认弹窗 |
+| `frontend/src/components/Toast.tsx` | 成功/失败提示 |
+| `frontend/src/utils/cronHelper.ts` | 把 cron 表达式转成更容易读的时间说明 |
+| `frontend/src/utils/styleHelper.ts` | 环境标签颜色等展示辅助逻辑 |
+| `frontend/src/types.ts` | 前端共享类型定义 |
 
 ## 中文流程图
 
